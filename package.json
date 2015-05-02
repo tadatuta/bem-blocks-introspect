@@ -1,0 +1,14 @@
+{
+  "name": "bem-blocks-introspect",
+  "version": "1.0.0",
+  "description": "Collects data about blocks files",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vladimir Grinenko",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "valkyrie": "tadatuta/valkyrie"
+  }
+}
