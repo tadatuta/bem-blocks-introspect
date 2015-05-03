@@ -10,7 +10,7 @@ var fs = require('fs'),
     mkdir = require('mkdirp'),
     Valkyrie = require('valkyrie');
 
-Valkyrie(['.'], { scheme: 'flat' })
+Valkyrie(['.', 'design'], { scheme: 'flat' })
     .get({ tech: 'blocks' }, 'path', onGotLevels);
 
 function onGotLevels(levels) {
@@ -20,9 +20,9 @@ function onGotLevels(levels) {
         mkdir.sync(set + '.docs');
 
         var setLevels = levels.filter(function(level) {
-            var levelName = level.split('.')[0];
-
-            return sets[set].indexOf(levelName) > -1;
+            return sets[set].some(function(lvl) {
+                return level.indexOf(lvl) > -1;
+            });
         });
 
         getBlocksFiles(setLevels, set);
