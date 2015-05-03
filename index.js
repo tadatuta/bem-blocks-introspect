@@ -7,8 +7,11 @@ var config = {
 
 var fs = require('fs'),
     path = require('path'),
+    util = require('util'),
+    vm = require('vm'),
     mkdir = require('mkdirp'),
-    Valkyrie = require('valkyrie');
+    Valkyrie = require('valkyrie'),
+    depsParser = require('bem-deps-parser');
 
 Valkyrie(['.', 'design'], { scheme: 'flat' })
     .get({ tech: 'blocks' }, 'path', onGotLevels);
@@ -51,6 +54,7 @@ function getBlocksFiles(levels, set) {
 
 function getExamplesFiles(levels, set) {
     var blocks = {},
+        examplesDeps = {},
         examplesToScan = [];
 
     Valkyrie(levels).on({ tech: 'examples' }, function(blockWithExamples) {
@@ -58,6 +62,38 @@ function getExamplesFiles(levels, set) {
 
         // TODO: check test.blocks by deps?
         Valkyrie([blockWithExamples.path], { scheme: 'flat' })
+            .on({ tech: 'bemjson.js' }, function(bemjsonFileObj) {
+                var exampleName = bemjsonFileObj.entity.block,
+                    id = blockWithExamplesName + exampleName;
+
+                examplesDeps[blockWithExamplesName] || (examplesDeps[blockWithExamplesName] = {});
+                examplesDeps[blockWithExamplesName][exampleName] || (examplesDeps[blockWithExamplesName][exampleName] = []);
+
+                examplesDeps[blockWithExamplesName][exampleName] = bemjsonFileObj;
+            })
+            .on('end', function() {
+                Object.keys(examplesDeps).forEach(function(block) {
+                    var folder = path.join(set + '.docs', block),
+                        exampleDeps = examplesDeps[block],
+                        totalExamples = exampleDeps.length;
+
+                    mkdir.sync(folder);
+
+                    // console.log('exampleDeps', exampleDeps);
+
+                    Object.keys(exampleDeps).forEach(function(exampleName) {
+                        var bemjsonFileObj = exampleDeps[exampleName],
+                            bemjsonText = fs.readFileSync(bemjsonFileObj.path, 'utf8');
+                        // TODO: parse as object
+                        // bemjson = vm.runInContext(bemjsonText, vm.createContext());
+                        depsParser(bemjsonText, function(deps) {
+                            bemjsonFileObj.deps = util.inspect(deps, { depth: null });
+                            totalExamples--;
+                            totalExamples || fs.writeFileSync(path.join(folder, block + '.examples-deps.js'), JSON.stringify(exampleDeps, null, 4));
+                        });
+                    });
+                });
+            })
             .on({ tech: 'blocks' }, function(example) {
                 var exampleName = example.entity.block,
                     id = blockWithExamplesName + exampleName;
@@ -81,4 +117,3 @@ function getExamplesFiles(levels, set) {
             });
     })
 }
-
