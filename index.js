@@ -87,30 +87,33 @@ function getExamplesFiles(levels, set) {
 // Add deps data to *.docs/*/*.meta.json
 // TODO: should be moved to enb-bem-docs
 Valkyrie(['.'], { scheme: 'flat' }).get({ tech: 'docs' }, 'path', function(paths) {
-    Valkyrie(paths).on({ tech: 'meta.json' }, function(meta) {
-        var pathToMeta = path.resolve(meta.path),
-            data = require(pathToMeta),
-            examples = data.examples;
+    Valkyrie(paths).on({ tech: 'data.json' }, function(dataObj) {
+        var pathToData = path.resolve(dataObj.path),
+            data = require(pathToData);
 
-        examples.forEach(function(example) {
-            var exampleDir,
-                exampleName,
-                source = example.source;
+        Object.keys(data).forEach(function(lang) {
+            var examples = data[lang].examples;
 
-            if (!source) {
-                exampleDir = example.path,
-                exampleName = exampleDir.split('/').pop();
+            examples.forEach(function(example) {
+                var exampleDir,
+                    exampleName,
+                    source = example.source;
 
-                source = fs.readFileSync(path.join(example.path, exampleName + '.bemjson.js'), 'utf8')
-            }
+                if (!source) {
+                    exampleDir = example.path,
+                    exampleName = exampleDir.split('/').pop();
 
-            var ctx = vm.createContext(),
-                bemjson = vm.runInContext(source[0] === '(' ? source : '(' + source + ')', ctx),
-                deps = buildDeps(bemjson);
+                    source = fs.readFileSync(path.join(example.path, exampleName + '.bemjson.js'), 'utf8')
+                }
 
-            example.deps = util.inspect(deps, { depth: null });
+                var ctx = vm.createContext(),
+                    bemjson = vm.runInContext(source[0] === '(' ? source : '(' + source + ')', ctx),
+                    deps = buildDeps(bemjson);
 
-            fs.writeFileSync(pathToMeta, JSON.stringify(data, null, 4));
+                example.deps = util.inspect(deps, { depth: null });
+
+                fs.writeFileSync(pathToData, JSON.stringify(data, null, 4));
+            });
         });
     });
 });
