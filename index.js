@@ -8,29 +8,54 @@ var config = {
 var fs = require('fs'),
     path = require('path'),
     mkdir = require('mkdirp'),
-    Valkyrie = require('valkyrie');
+    Valkyrie = require('valkyrie'),
 
-Valkyrie(['.', 'design'], { scheme: 'flat' })
+    numberCallbacksToCall = 2;
+
+var cb = function() {
+    console.log('Introspection is done.');
+}
+
+var libFolder = process.argv[2] || process.cwd(),
+    levelsToScan = [libFolder],
+    designFolder = path.join(libFolder, 'design');
+
+fs.existsSync(designFolder) && levelsToScan.push(designFolder);
+
+// TODO: необходимо добавлять (и потом отличать) уровни библиотек-зависимостей
+
+Valkyrie(levelsToScan, { scheme: 'flat' })
     .get({ tech: 'blocks' }, 'path', onGotLevels);
 
 function onGotLevels(levels) {
     var sets = config.sets;
 
+    // костыль для папки blocks
+    fs.existsSync(path.join(libFolder, 'blocks')) && levels.unshift(path.join(libFolder, 'blocks'));
+
     Object.keys(sets).forEach(function(set) {
-        mkdir.sync(set + '.docs');
+        var pathToSet = path.join(libFolder, set);
+
+        mkdir.sync(pathToSet + '.docs');
 
         var setLevels = levels.filter(function(level) {
             return sets[set].some(function(lvl) {
-                return level.indexOf(lvl) > -1;
+                return level.indexOf(lvl) > -1 || path.basename(level) === 'blocks';
             });
         });
 
-        getBlocksFiles(setLevels, set);
-        getExamplesFiles(setLevels, set);
+        getBlocksFiles(setLevels, pathToSet, tryToCallback);
+        getExamplesFiles(setLevels, pathToSet, tryToCallback);
     });
 }
 
-function getBlocksFiles(levels, set) {
+function tryToCallback() {
+    --numberCallbacksToCall;
+    if (!numberCallbacksToCall) cb();
+}
+
+
+function getBlocksFiles(levels, set, cb) {
     var blocks = {};
 
     Valkyrie(levels.filter(function(level) { return level !== 'test.blocks'; }))
@@ -46,39 +71,48 @@ function getBlocksFiles(levels, set) {
                 mkdir.sync(folder);
                 fs.writeFileSync(path.join(folder, block + '.source-files.json'), JSON.stringify(blocks[block], null, 4));
             });
+
+            cb();
         });
 }
 
-function getExamplesFiles(levels, set) {
+function getExamplesFiles(levels, set, cb) {
     var blocks = {},
         examplesToScan = [];
 
-    Valkyrie(levels).on({ tech: 'examples' }, function(blockWithExamples) {
-        var blockWithExamplesName = blockWithExamples.entity.block;
+    Valkyrie(levels)
+        .on({ tech: 'examples' }, function(blockWithExamples) {
+            ++numberCallbacksToCall;
+            var blockWithExamplesName = blockWithExamples.entity.block;
 
-        // TODO: check test.blocks by deps?
-        Valkyrie([blockWithExamples.path], { scheme: 'flat' })
-            .on({ tech: 'blocks' }, function(example) {
-                var exampleName = example.entity.block,
-                    id = blockWithExamplesName + exampleName;
+            // TODO: check test.blocks by deps?
+            Valkyrie([blockWithExamples.path], { scheme: 'flat' })
+                .on({ tech: 'blocks' }, function(example) {
+                    var exampleName = example.entity.block,
+                        id = blockWithExamplesName + exampleName;
 
-                examplesToScan.push(id);
-                Valkyrie([example.path])
-                    .on('*', function(file) {
-                        blocks[blockWithExamplesName] || (blocks[blockWithExamplesName] = {});
-                        blocks[blockWithExamplesName][exampleName] || (blocks[blockWithExamplesName][exampleName] = []);
+                    examplesToScan.push(id);
+                    Valkyrie([example.path])
+                        .on('*', function(file) {
+                            blocks[blockWithExamplesName] || (blocks[blockWithExamplesName] = {});
+                            blocks[blockWithExamplesName][exampleName] || (blocks[blockWithExamplesName][exampleName] = []);
 
-                        blocks[blockWithExamplesName][exampleName].push(file);
-                    })
-                    .on('end', function() {
-                        examplesToScan.splice(examplesToScan.indexOf(id), 1);
-                        examplesToScan.length || Object.keys(blocks).forEach(function(block) {
-                            var folder = path.join(set + '.docs', block);
-                            mkdir.sync(folder);
-                            fs.writeFileSync(path.join(folder, block + '.examples-files.json'), JSON.stringify(blocks[block], null, 4));
-                        });
-                    })
-            });
-    })
+                            blocks[blockWithExamplesName][exampleName].push(file);
+                        })
+                        .on('end', function() {
+                            examplesToScan.splice(examplesToScan.indexOf(id), 1);
+                            examplesToScan.length || Object.keys(blocks).forEach(function(block) {
+                                var folder = path.join(set + '.docs', block);
+                                mkdir.sync(folder);
+                                fs.writeFileSync(path.join(folder, block + '.examples-files.json'), JSON.stringify(blocks[block], null, 4));
+                            });
+
+                            cb();
+                        })
+                });
+        })
+        .on('end', function() {
+            cb();
+        });
 }
 
