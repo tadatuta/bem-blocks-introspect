@@ -1,10 +1,3 @@
-var config = {
-    sets: {
-        desktop : ['common', 'desktop'],
-        touch : ['common', 'touch']
-    }
-};
-
 var fs = require('fs'),
     path = require('path'),
     mkdir = require('mkdirp'),
@@ -12,48 +5,55 @@ var fs = require('fs'),
 
     numberCallbacksToCall = 2;
 
-var cb = function() {
-    console.log('Introspection is done.');
-}
+module.exports = function(libFolder, config, cb) {
 
-var libFolder = process.argv[2] || process.cwd(),
-    levelsToScan = [libFolder],
-    designFolder = path.join(libFolder, 'design');
+    if (typeof config === 'function') {
+        cb = config;
+    }
 
-fs.existsSync(designFolder) && levelsToScan.push(designFolder);
+    if (!config || typeof config === 'function') {
+        config = require('./configs/default');
+    }
 
-// TODO: необходимо добавлять (и потом отличать) уровни библиотек-зависимостей
+    var levelsToScan = [libFolder],
+        designFolder = path.join(libFolder, 'design'),
+        outputFolder = config.outputFolder || libFolder;
 
-Valkyrie(levelsToScan, { scheme: 'flat' })
-    .get({ tech: 'blocks' }, 'path', onGotLevels);
+    fs.existsSync(designFolder) && levelsToScan.push(designFolder);
 
-function onGotLevels(levels) {
-    var sets = config.sets;
+    // TODO: необходимо добавлять (и потом отличать) уровни библиотек-зависимостей
 
-    // костыль для папки blocks
-    fs.existsSync(path.join(libFolder, 'blocks')) && levels.unshift(path.join(libFolder, 'blocks'));
+    Valkyrie(levelsToScan, { scheme: 'flat' })
+        .get({ tech: 'blocks' }, 'path', onGotLevels);
 
-    Object.keys(sets).forEach(function(set) {
-        var pathToSet = path.join(libFolder, set);
+    function onGotLevels(levels) {
+        var sets = config.sets;
 
-        mkdir.sync(pathToSet + '.docs');
+        // костыль для папки blocks
+        fs.existsSync(path.join(libFolder, 'blocks')) && levels.unshift(path.join(libFolder, 'blocks'));
 
-        var setLevels = levels.filter(function(level) {
-            return sets[set].some(function(lvl) {
-                return level.indexOf(lvl) > -1 || path.basename(level) === 'blocks';
+        Object.keys(sets).forEach(function(set) {
+            var pathToSet = path.join(outputFolder, set);
+
+            mkdir.sync(pathToSet + '.docs');
+
+            var setLevels = levels.filter(function(level) {
+                return sets[set].some(function(lvl) {
+                    return level.indexOf(lvl) > -1 || path.basename(level) === 'blocks';
+                });
             });
+
+            getBlocksFiles(setLevels, pathToSet, tryToCallback);
+            getExamplesFiles(setLevels, pathToSet, tryToCallback);
         });
+    }
 
-        getBlocksFiles(setLevels, pathToSet, tryToCallback);
-        getExamplesFiles(setLevels, pathToSet, tryToCallback);
-    });
+    function tryToCallback() {
+        --numberCallbacksToCall;
+        if (!numberCallbacksToCall) cb();
+    }
+
 }
-
-function tryToCallback() {
-    --numberCallbacksToCall;
-    if (!numberCallbacksToCall) cb();
-}
-
 
 function getBlocksFiles(levels, set, cb) {
     var blocks = {};
@@ -115,4 +115,3 @@ function getExamplesFiles(levels, set, cb) {
             cb();
         });
 }
-

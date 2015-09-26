@@ -8,6 +8,9 @@
   },
   "author": "Vladimir Grinenko",
   "license": "MPL-2.0",
+  "bin": {
+    "bem-blocks-introspect": "./bin/bem-blocks-introspect"
+  },
   "dependencies": {
     "mkdirp": "^0.5.0",
     "valkyrie": "tadatuta/valkyrie"

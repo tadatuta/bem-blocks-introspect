@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+
+if (!process.argv[2]) {
+    console.log([
+        'USAGE:',
+        'bem-blocks-introspect path/to/library/to/introspect',
+        'or',
+        'bem-blocks-introspect path/to/library/to/introspect path/to/config',
+    ].join(require('os').EOL));
+    process.exit();
+}
+
+var introspect = require('..'),
+    libFolder = process.argv[2] || process.cwd(),
+    pathToConf = process.argv[3] || require.resolve('../configs/default'),
+    config = require(pathToConf);
+
+introspect(libFolder, config, function() {
+    console.log('Introspection is done.');
+});
