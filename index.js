@@ -1,7 +1,7 @@
 var fs = require('fs'),
     path = require('path'),
     mkdir = require('mkdirp'),
-    Valkyrie = require('valkyrie'),
+    Valkyrie = require('bem-valkyrie'),
 
     numberCallbacksToCall = 2;
 
