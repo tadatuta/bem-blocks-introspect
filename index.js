@@ -104,11 +104,14 @@ function getExamplesFiles(levels, set) {
             .on({ tech: 'examples' }, function(blockWithExamples) {
                 hasExamples = true;
 
+                var hasBlocksLevel = false;
                 var blockWithExamplesName = blockWithExamples.entity.block;
 
                 // TODO: check test.blocks by deps?
                 Valkyrie([blockWithExamples.path], { scheme: 'flat' })
                     .on({ tech: 'blocks' }, function(example) {
+                        hasBlocksLevel = true;
+
                         var exampleName = example.entity.block,
                             id = blockWithExamplesName + exampleName;
 
@@ -140,6 +143,9 @@ function getExamplesFiles(levels, set) {
                                 }
                             })
                             .on('error', reject);
+                    })
+                    .on('end', function() {
+                        if (!hasBlocksLevel) resolve({});
                     })
                     .on('error', reject);
             })
