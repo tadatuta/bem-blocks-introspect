@@ -3,6 +3,10 @@
   "version": "2.0.1",
   "description": "Collects data about blocks files",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/tadatuta/bem-blocks-introspect.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,7 +16,7 @@
     "bem-blocks-introspect": "./bin/bem-blocks-introspect"
   },
   "dependencies": {
-    "mkdirp": "^0.5.0",
+    "mkdirp": "^0.5.1",
     "bem-valkyrie": "^1.0.0"
   }
 }
